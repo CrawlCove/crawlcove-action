@@ -65,6 +65,7 @@ This action is the CI half of [Crawl Cove](https://crawlcove.com/?utm_source=git
 
 ## Related tools
 
+- [crawlcove-mcp](https://github.com/CrawlCove/crawlcove-mcp) — MCP server that gives Claude, Cursor and other AI assistants the crawl data: crawl a site, list issues, find broken links.
 - [crawlcove-cli](https://github.com/CrawlCove/crawlcove-cli) — the command line crawler this action runs.
 - [crawlcove-export-spec](https://github.com/CrawlCove/crawlcove-export-spec) — the JSON Schema and CSV column reference the report's page shape follows.
 - [crawl-cove-connector](https://github.com/CrawlCove/crawl-cove-connector) — WordPress plugin that applies Crawl Cove's approved fixes to Yoast, Rank Math, SEOPress or AIOSEO.
