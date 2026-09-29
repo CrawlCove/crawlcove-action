@@ -35,7 +35,7 @@ inputs:
     default: ${{ github.token }}
   cli-version:
     description: 'Git ref of CrawlCove/crawlcove-cli to install (tag, branch, or sha).'
-    default: 'v1.1.0'
+    default: 'v1.1.1'
 
 outputs:
   exit-code:
@@ -69,7 +69,18 @@ runs:
 
     - name: Install crawlcove CLI
       shell: bash
-      run: npm install -g "github:CrawlCove/crawlcove-cli#${{ inputs.cli-version }}"
+      env:
+        CLI_VERSION: ${{ inputs.cli-version }}
+      # A plain clone at the pinned ref plus a production-only install: no
+      # reliance on npm's git-dependency preparation, which differs between npm
+      # versions (npm 10 skips dev dependencies before running lifecycle
+      # scripts). crawlcove-cli commits its built dist/, so nothing to compile.
+      run: |
+        dir="$RUNNER_TEMP/crawlcove-cli"
+        git clone --quiet --depth 1 --branch "$CLI_VERSION" https://github.com/CrawlCove/crawlcove-cli.git "$dir"
+        (cd "$dir" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund --silent)
+        echo "CRAWLCOVE_CLI=$dir/dist/cli.js" >> "$GITHUB_ENV"
+        node "$dir/dist/cli.js" --version
 
     - name: Crawl
       id: crawl
@@ -89,7 +100,7 @@ runs:
               --fail-on "$INPUT_FAIL_ON" --threshold "$INPUT_THRESHOLD")
         if [ "$INPUT_IGNORE_ROBOTS" = "true" ]; then args+=(--ignore-robots); fi
         set +e
-        crawlcove "${args[@]}" 2> "$RUNNER_TEMP/crawlcove-stderr.txt"
+        node "$CRAWLCOVE_CLI" "${args[@]}" 2> "$RUNNER_TEMP/crawlcove-stderr.txt"
         code=$?
         set -e
         cat "$RUNNER_TEMP/crawlcove-stderr.txt"
