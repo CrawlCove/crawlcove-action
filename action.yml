@@ -35,7 +35,7 @@ inputs:
     default: ${{ github.token }}
   cli-version:
     description: 'Git ref of CrawlCove/crawlcove-cli to install (tag, branch, or sha).'
-    default: 'v1.1.2'
+    default: 'v1.1.3'
 
 outputs:
   exit-code:

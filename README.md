@@ -39,7 +39,7 @@ The PR comment needs `permissions: pull-requests: write` on the job; everything 
 | `timeout` | `15000` | Per-request timeout, ms. |
 | `comment` | `true` | Post and update the PR comment (pull_request events only). |
 | `github-token` | `${{ github.token }}` | Token for the comment. |
-| `cli-version` | `v1.1.2` | Git ref of `crawlcove-cli` to install. |
+| `cli-version` | `v1.1.3` | Git ref of `crawlcove-cli` to install. |
 
 ## Outputs
 
