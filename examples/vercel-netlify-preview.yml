@@ -1,0 +1,25 @@
+# Crawl the preview deployment of every pull request (Vercel, Netlify, Cloudflare
+# Pages…) once it is up, and fail the check on SEO regressions.
+#
+# Preview URLs arrive via a deployment_status event from the hosting provider's
+# GitHub integration — no secrets needed. Swap `deployment_status` for a
+# `workflow_run`/`repository_dispatch` trigger if your host works differently.
+name: SEO crawl (preview)
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+  pull-requests: write   # for the summary comment
+
+jobs:
+  crawl:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: CrawlCove/crawlcove-action@v1
+        with:
+          url: ${{ github.event.deployment_status.environment_url }}
+          max-pages: 200
+          fail-on: broken-links,missing-titles,redirect-chains   # previews are usually noindex on purpose

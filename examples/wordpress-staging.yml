@@ -1,0 +1,25 @@
+# Crawl a WordPress staging site on a schedule (and on demand) and open the
+# failure as a check on the default branch. Staging hosts are typically behind a
+# blanket `Disallow: /` — set ignore-robots for a host you own.
+name: SEO crawl (WordPress staging)
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'   # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: CrawlCove/crawlcove-action@v1
+        with:
+          url: https://staging.example.com/
+          max-pages: 500
+          concurrency: 2          # be gentle with shared hosting
+          ignore-robots: 'true'
+          fail-on: broken-links,redirect-chains
+          threshold: 5            # tolerate a few, fail on a pile-up

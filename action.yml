@@ -1,0 +1,140 @@
+name: 'CrawlCove SEO Crawl'
+description: 'Crawl a staging or preview URL on every PR and fail the check on SEO regressions: broken links, missing titles, noindex, redirect chains.'
+author: 'Crawl Cove'
+branding:
+  icon: 'search'
+  color: 'blue'
+
+inputs:
+  url:
+    description: 'URL to start crawling from (your preview or staging deployment).'
+    required: true
+  max-pages:
+    description: 'Stop after crawling this many pages.'
+    default: '100'
+  fail-on:
+    description: 'Comma-separated checks that count towards failure: broken-links, missing-titles, noindex, redirect-chains — or "none" to report without failing.'
+    default: 'broken-links,missing-titles,noindex,redirect-chains'
+  threshold:
+    description: 'Fail once the selected checks total this many issues.'
+    default: '1'
+  ignore-robots:
+    description: 'Crawl URLs that robots.txt disallows. Only for sites you own — typical for a staging host behind a blanket Disallow.'
+    default: 'false'
+  concurrency:
+    description: 'Simultaneous requests.'
+    default: '4'
+  timeout:
+    description: 'Per-request timeout in milliseconds.'
+    default: '15000'
+  comment:
+    description: 'Post (and keep updating) a summary comment on the pull request.'
+    default: 'true'
+  github-token:
+    description: 'Token used to post the PR comment. Needs pull-requests: write.'
+    default: ${{ github.token }}
+  cli-version:
+    description: 'Git ref of CrawlCove/crawlcove-cli to install (tag, branch, or sha).'
+    default: 'v1.1.0'
+
+outputs:
+  exit-code:
+    description: '0 clean, 1 the selected checks reached the threshold, 2 the crawl could not run (usage error or robots.txt disallowed the start URL).'
+    value: ${{ steps.crawl.outputs.exit-code }}
+  report-path:
+    description: 'Path to the full JSON report (crawlcove-export-spec page shape for the fields the CLI checks).'
+    value: ${{ steps.crawl.outputs.report-path }}
+  pages:
+    description: 'Pages crawled.'
+    value: ${{ steps.summary.outputs.pages }}
+  broken-links:
+    description: 'Broken internal links found (links to 4xx/5xx/unreachable pages, plus each broken page itself).'
+    value: ${{ steps.summary.outputs.broken-links }}
+  missing-titles:
+    description: 'Pages with no <title>.'
+    value: ${{ steps.summary.outputs.missing-titles }}
+  noindex:
+    description: 'Pages carrying a robots noindex meta tag.'
+    value: ${{ steps.summary.outputs.noindex }}
+  redirect-chains:
+    description: 'URLs that went through 2 or more redirects.'
+    value: ${{ steps.summary.outputs.redirect-chains }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install crawlcove CLI
+      shell: bash
+      run: npm install -g "github:CrawlCove/crawlcove-cli#${{ inputs.cli-version }}"
+
+    - name: Crawl
+      id: crawl
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_MAX_PAGES: ${{ inputs.max-pages }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_THRESHOLD: ${{ inputs.threshold }}
+        INPUT_IGNORE_ROBOTS: ${{ inputs.ignore-robots }}
+        INPUT_CONCURRENCY: ${{ inputs.concurrency }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+      run: |
+        report="$RUNNER_TEMP/crawlcove-report.json"
+        args=(crawl "$INPUT_URL" --output json --file "$report"
+              --max-pages "$INPUT_MAX_PAGES" --concurrency "$INPUT_CONCURRENCY" --timeout "$INPUT_TIMEOUT"
+              --fail-on "$INPUT_FAIL_ON" --threshold "$INPUT_THRESHOLD")
+        if [ "$INPUT_IGNORE_ROBOTS" = "true" ]; then args+=(--ignore-robots); fi
+        set +e
+        crawlcove "${args[@]}" 2> "$RUNNER_TEMP/crawlcove-stderr.txt"
+        code=$?
+        set -e
+        cat "$RUNNER_TEMP/crawlcove-stderr.txt"
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        echo "report-path=$report" >> "$GITHUB_OUTPUT"
+
+    - name: Summarise
+      id: summary
+      shell: bash
+      env:
+        INPUT_URL: ${{ inputs.url }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_THRESHOLD: ${{ inputs.threshold }}
+        CRAWL_EXIT_CODE: ${{ steps.crawl.outputs.exit-code }}
+      run: |
+        node "$GITHUB_ACTION_PATH/scripts/summary.js" \
+          "$RUNNER_TEMP/crawlcove-report.json" "$RUNNER_TEMP/crawlcove-stderr.txt" \
+          > "$RUNNER_TEMP/crawlcove-summary.md"
+        cat "$RUNNER_TEMP/crawlcove-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Comment on the pull request
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const fs = require('fs')
+          const marker = '<!-- crawlcove-action -->'
+          const body = marker + '\n' + fs.readFileSync(process.env.RUNNER_TEMP + '/crawlcove-summary.md', 'utf8')
+          const { owner, repo } = context.repo
+          const issue_number = context.payload.pull_request.number
+          const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number, per_page: 100 })
+          const existing = comments.find((c) => c.body && c.body.startsWith(marker))
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body })
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body })
+          }
+
+    - name: Fail the check on regressions
+      shell: bash
+      env:
+        CRAWL_EXIT_CODE: ${{ steps.crawl.outputs.exit-code }}
+      run: |
+        if [ "$CRAWL_EXIT_CODE" != "0" ]; then
+          echo "::error::crawlcove exited $CRAWL_EXIT_CODE — see the job summary for details."
+          exit "$CRAWL_EXIT_CODE"
+        fi

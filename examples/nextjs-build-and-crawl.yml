@@ -1,0 +1,31 @@
+# Build a Next.js site inside the workflow, serve it, and crawl it on every PR —
+# no external preview host required.
+name: SEO crawl (Next.js)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Serve the build
+        run: |
+          (npx next start -p 3000 > /dev/null 2>&1 &)
+          for i in $(seq 1 30); do curl -fs http://127.0.0.1:3000/ > /dev/null && break; sleep 1; done
+      - uses: CrawlCove/crawlcove-action@v1
+        with:
+          url: http://127.0.0.1:3000/
+          max-pages: 300
+          ignore-robots: 'true'   # a local build's robots.txt usually blocks everything
