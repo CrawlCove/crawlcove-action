@@ -63,6 +63,8 @@ The action installs [crawlcove-cli](https://github.com/CrawlCove/crawlcove-cli) 
 
 This action is the CI half of [Crawl Cove](https://crawlcove.com/?utm_source=github&utm_medium=crawlcove-action), a desktop SEO crawler for Windows and Mac. The action catches regressions before they merge; the desktop app gives you the full site audit — every page, every finding, fixes ranked by impact, history over time, Search Console data alongside. Open the same URL there when a check fails and you want the whole picture.
 
+This repo has its own page on crawlcove.com: [Crawl Cove Action](https://crawlcove.com/open-source/crawlcove-action?utm_source=github&utm_medium=crawlcove-action), with the guide to SEO checks in GitHub Actions at [https://crawlcove.com/blog/seo-github-action](https://crawlcove.com/blog/seo-github-action?utm_source=github&utm_medium=crawlcove-action).
+
 ## Related tools
 
 - [crawlcove-mcp](https://github.com/CrawlCove/crawlcove-mcp) — MCP server that gives Claude, Cursor and other AI assistants the crawl data: crawl a site, list issues, find broken links.
