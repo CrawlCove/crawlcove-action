@@ -80,7 +80,7 @@ runs:
         git clone --quiet --depth 1 --branch "$CLI_VERSION" https://github.com/CrawlCove/crawlcove-cli.git "$dir"
         (cd "$dir" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund --silent)
         echo "CRAWLCOVE_CLI=$dir/dist/cli.js" >> "$GITHUB_ENV"
-        node "$dir/dist/cli.js" --version
+        node "$dir/dist/cli.js" --help > /dev/null
 
     - name: Crawl
       id: crawl
