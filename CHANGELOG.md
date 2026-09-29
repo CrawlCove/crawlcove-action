@@ -5,7 +5,7 @@
 Initial release.
 
 - Composite action wrapping [crawlcove-cli](https://github.com/CrawlCove/crawlcove-cli)
-  v1.1.1: crawls `url` up to `max-pages`, fails the check when the `fail-on`
+  v1.1.2: crawls `url` up to `max-pages`, fails the check when the `fail-on`
   checks (broken-links, missing-titles, noindex, redirect-chains) reach
   `threshold`.
 - Job summary plus a single, self-updating pull-request comment (opt out with
